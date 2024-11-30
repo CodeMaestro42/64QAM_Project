@@ -4,7 +4,16 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <cstdlib>
+#include <ctime>
 using namespace std; 
+
+class InputBitStream {
+
+public: 
+    string inputstream; 
+    InputBitStream() : inputstream("000");
+};
 
 class BitStream {
 public: 
@@ -208,40 +217,47 @@ void ImaginaryDeModulation(Symbol& Sym, BitStream& RBits)
 
 void Decoding()
 {
-
+    
 }
+
+void ErrorDetect()
+{}
 
 void NoiseAddition()
 {
 
 }
 
+int main() {
+    // Seed the random number generator
+    srand(time(0)); 
 
-int main() { 
-    vector<string> inputs(10); // Vector to store 10 inputs 
-    cout << "Enter your inputs:" << endl; 
+    int length;
+    cout << "Enter the length of each string: ";
+    cin >> length;
 
-    // Loop to get 10 inputs from the user
-    for (int i = 0; i < 10; i++) { 
-        string temp; 
-        while (true) {
-            cout << "Input " << i + 1 << " : ";
-            getline(cin, temp); 
+    // Vector to store the random strings
+    vector<string> randomStrings;
 
-            if (temp.length() == 6) { 
-                inputs[i] = temp; 
-                break;
-            } else {
-                cout << "Error: input must be exactly 6 characters long, try again." << endl;
-            }
+    for (int j = 0; j < 10; j++) { // Loop to generate 10 strings
+        string randomString = "";
+
+        for (int i = 0; i < length; i++) {
+            // Generate a random number, either 0 or 1
+            int randomBit = rand() % 2; 
+
+            // Append the random bit to the string
+            randomString += to_string(randomBit); 
         }
+
+        // Store the random string in the vector
+        randomStrings.push_back(randomString);
     }
 
-    // Now print all the 10 inputs after they have been entered
-    cout << "You entered the following inputs:" << endl; 
-    for (int i = 0; i < 10; i++) {
-        cout << inputs[i] << endl; // Access inputs using index 
+    // Output all stored random strings
+    for (int i = 0; i < randomStrings.size(); i++) {
+        cout << "Random string " << i + 1 << ": " << randomStrings[i] << endl;
     }
-    
+
     return 0;
 }
