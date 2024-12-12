@@ -1,263 +1,263 @@
 #include <iostream>
-#include <cmath> 
+#include <cmath>
 #include <random>
-#include <unordered_map>
 #include <string>
 #include <vector>
 #include <cstdlib>
 #include <ctime>
-using namespace std; 
+#include <cstring> // For strcpy
 
-class InputBitStream {
+using namespace std;
 
-public: 
-    string inputstream; 
-    InputBitStream() : inputstream("000");
-};
-
+// BitStream class with a fixed-size char array instead of std::string
 class BitStream {
-public: 
-    string bitstring;
+public:
+    char bitstring[6]; // Using a fixed-size array to store the bitstring
 
-    BitStream() : bitstring("000000") {}
+    BitStream() {
+        strcpy(bitstring, "000000"); // Initialize with a default value
+    }
 };
 
+// Symbol class to store amplitude and phase
 class Symbol {
-public: 
-    int amplitude; 
-    int phase; 
+public:
+    int amplitude;
+    int phase;
 
     Symbol() : amplitude(0), phase(0) {}
 };
 
-void HammingCode()
-{
-//
+// RealModulation function (CUDA kernel)
+__global__ void RealModulation(BitStream *TBits, Symbol *Sym, numSymbols) {
+    int idx = blockIdx.x * blockDim.x + threadIx.x;
+    int batchsize = 10;
+
+    if (TBits->bitstring[0] == '0' && TBits->bitstring[1] == '0' && TBits->bitstring[2] == '0') {
+        Sym->amplitude = -4;
+    }
+    else if (TBits->bitstring[0] == '0' && TBits->bitstring[1] == '0' && TBits->bitstring[2] == '1') {
+        Sym->amplitude = -3;
+    }
+    else if (TBits->bitstring[0] == '0' && TBits->bitstring[1] == '1' && TBits->bitstring[2] == '1') {
+        Sym->amplitude = -2;
+    }
+    else if (TBits->bitstring[0] == '0' && TBits->bitstring[1] == '1' && TBits->bitstring[2] == '0') {
+        Sym->amplitude = -1;
+    }
+    else if (TBits->bitstring[0] == '1' && TBits->bitstring[1] == '1' && TBits->bitstring[2] == '0') {
+        Sym->amplitude = 1;
+    }
+    else if (TBits->bitstring[0] == '1' && TBits->bitstring[1] == '1' && TBits->bitstring[2] == '1') {
+        Sym->amplitude = 2;
+    }
+    else if (TBits->bitstring[0] == '1' && TBits->bitstring[1] == '0' && TBits->bitstring[2] == '1') {
+        Sym->amplitude = 3;
+    }
+    else if (TBits->bitstring[0] == '1' && TBits->bitstring[1] == '0' && TBits->bitstring[2] == '0') {
+        Sym->amplitude = 4;
+    }
 }
 
-void RealModulation(BitStream &TBits, Symbol &Sym)
+__global__ void ImaginaryModulation(BitStream *TBits, Symbol *Sym, numSymbols)
 { 
-    if ((TBits.bitstring[0] == '0') && (TBits.bitstring[1] == '0') && (TBits.bitstring[2] == '0'))
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchsize = 10;
+    if (idx < numSymbols / batchSize) {
 
-    {
-        Sym.amplitude = -4;
+        if (TBits->bitstring[3] == '0' && TBits->bitstring[4] == '0' && (TBits->bitstring[5] == '0')){
+        Sym->phase = -4;
+            }
+        else if (TBits->bitstring[3] == '0' && TBits->bitstring[4] == '0' && TBits->bitstring[5] == '1'){
+        Sym->phase = -3;
+            } 
+        else if (TBits->bitstring[3] == '0' && TBits->bitstring[4] == '1' &&TBits->bitstring[5] == '1'){
+        Sym->phase = -2;
+            } 
+        else if (TBits->bitstring[3] == '0' && TBits->bitstring[4] == '1' && (TBits->bitstring[5] == '0')){
+        Sym->phase = -1;
+            } 
+        else if (TBits->bitstring[3] == '1' && TBits->bitstring[4] == '1' && TBits->bitstring[5] == '0'){
+        Sym->phase = 1;
+            } 
+        else if (TBits->bitstring[3] == '1' && TBits->bitstring[4] == '1' && TBits->bitstring[5] == '1'){
+        Sym->phase = 2;
+            } 
+        else if ((TBits->bitstring[3] == '1') && (TBits->bitstring[4] == '0') && (TBits->bitstring[5] == '1')){
+        Sym->phase = 3;
+            } 
+        else if ((TBits->bitstring[3] == '1') && (TBits->bitstring[4] == '0') && (TBits->bitstring[5] == '0')){
+        Sym->phase = 4;
+            } 
     }
-
-    else if ((TBits.bitstring[0] == '0') && (TBits.bitstring[1] == '0') && (TBits.bitstring[2] == '1'))
-
-    {
-        Sym.amplitude = -3;
-    } 
-    else if ((TBits.bitstring[0] == '0') && (TBits.bitstring[1] == '1') && (TBits.bitstring[2] == '1'))
-
-    {
-        Sym.amplitude = -2;
-    }
-    else if ((Bits.bitstring[0] == '0') && (Bits.bitstring[1] == '1') && (TBits.bitstring[2] == '0'))
-
-    {
-        Sym.amplitude = -1;
-    }
-    else if ((Bits.bitstring[0] == '1') && (TBits.bitstring[1] == '1') && (Bits.bitstring[2] == '0'))
-
-    {
-        Sym.amplitude = 1;
-    } 
-    else if ((TBits.bitstring[0] == '1') && (Bits.bitstring[1] == '1') && (Bits.bitstring[2] == '1'))
-
-    {
-        Sym.amplitude = 2;
-    } 
-    else if ((TBits.bitstring[0] == '1') && (TBits.bitstring[1] == '0') && (TBits.bitstring[2] == '1'))
-
-    {
-        Sym.amplitude = 3;
-    } 
-    else if ((TBits.bitstring[0] == '1') && (TBits.bitstring[1] == '0') && (TBits.bitstring[2] == '0'))
-
-    {
-        Sym.amplitude = 4;
-    } 
 }
 
-void ImaginaryModulation(BitStream &TBits, Symbol &Sym)
-{ 
-    if ((TBits.bitstring[3] == '0') && (TBits.bitstring[4] == '0') && (TBits.bitstring[5] == '0'))
-
-    {
-        Sym.phase = -4;
-    }
-
-    else if ((TBits.bitstring[3] == '0') && (TBits.bitstring[4] == '0') && (TBits.bitstring[5] == '1'))
-
-    {
-        Sym.phase = -3;
-    } 
-    else if ((TBits.bitstring[3] == '0') && (TBits.bitstring[4] == '1') && (TBits.bitstring[5] == '1'))
-
-    {
-        Sym.phase = -2;
-    } 
-    else if ((TBits.bitstring[3] == '0') && (TBits.bitstring[4] == '1') && (TBits.bitstring[5] == '0'))
-
-    {
-        Sym.phase = -1;
-    } 
-    else if ((TBits.bitstring[3] == '1') && (Bits.bitstring[4] == '1') && (TBits.bitstring[5] == '0'))
-
-    {
-        Sym.phase = 1;
-    } 
-    else if ((TBits.bitstring[3] == '1') && (TBits.bitstring[4] == '1') && (TBits.bitstring[5] == '1'))
-
-    {
-        Sym.phase = 2;
-    } 
-    else if ((TBits.bitstring[3] == '1') && (TBits.bitstring[4] == '0') && (TBits.bitstring[5] == '1'))
-
-    {
-        Sym.phase = 3;
-    } 
-    else if ((TBits.bitstring[3] == '1') && (TBits.bitstring[4] == '0') && (TBits.bitstring[5] == '0'))
-
-    {
-        Sym.phase = 4;
-    } 
-}
-
-void RealDeModulation(Symbol& Sym, BitStream& RBits)
+__global__ void RealDeModulation(Symbol *Sym, BitStream *RBits, numSymbols)
 {
-    if (Sym.amplitude==-4)
-
-    {
-        Rbits[0]='0' && Rbits[1]='0' &&Rbits[2]= '0' ;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchsize = 10;
+    if (idx < numSymbols / batchSize) {
+    // Corrected the comparison with the fixed-size array and proper assignment
+    if (Sym->amplitude == -4) {
+        RBits->bitstring[0] = '0';
+        RBits->bitstring[1] = '0';
+        RBits->bitstring[2] = '0';
     }
-
-    else if (Sym.amplitude==-3)
-
-    {
-        Rbits[0]='0' && Rbits[1]='0' &&Rbits[2]= '1'
+    else if (Sym->amplitude == -3) {
+        RBits->bitstring[0] = '0';
+        RBits->bitstring[1] = '0';
+        RBits->bitstring[2] = '1';
     } 
-    else if (Sym.amplitude==-2)
-
-    {
-        Rbits[0]='0' && Rbits[1]='1' &&Rbits[2]= '1' ;
+    else if (Sym->amplitude == -2) {
+        RBits->bitstring[0] = '0';
+        RBits->bitstring[1] = '1';
+        RBits->bitstring[2] = '1';
     } 
-    else if (Sym.amplitude==-1)
-
-    {
-        Rbits[0]='0' && Rbits[1]='1' &&Rbits[2]= '0' ;
+    else if (Sym->amplitude == -1) {
+        RBits->bitstring[0] = '0';
+        RBits->bitstring[1] = '1';
+        RBits->bitstring[2] = '0';
     } 
-    else if (Sym.amplitude==1)
-
-    {
-        Rbits[0]='1' && Rbits[1]='1' &&Rbits[2]= '0' ;
+    else if (Sym->amplitude == 1) {
+        RBits->bitstring[0] = '1';
+        RBits->bitstring[1] = '1';
+        RBits->bitstring[2] = '0';
     } 
-    else if (Sym.amplitude==2)
-
-    {
-        Rbits[0]='1' && Rbits[1]='1' &&Rbits[2]= '1' ;
+    else if (Sym->amplitude == 2) {
+        RBits->bitstring[0] = '1';
+        RBits->bitstring[1] = '1';
+        RBits->bitstring[2] = '1';
     } 
-    else if (Sym.amplitude==3)
-
-    {
-        Rbits[0]='1' && Rbits[1]='0' &&Rbits[2]= '1' ;
+    else if (Sym->amplitude == 3) {
+        RBits->bitstring[0] = '1';
+        RBits->bitstring[1] = '0';
+        RBits->bitstring[2] = '1';
     } 
-    else if (Sym.amplitude==4)
-
-    {
-        Rbits[0]='1' && Rbits[1]='0' &&Rbits[2]= '0' ;
-    } 
-}
-
-void ImaginaryDeModulation(Symbol& Sym, BitStream& RBits)
-{
-    if (Sym.phase==-4)
-
-    {
-        Rbits[3]='0' && Rbits[4]='0' &&Rbits[5]= '0' ;
-    }
-
-    else if (Sym.phase==-3)
-
-    {
-        Rbits[3]='0' && Rbits[4]='0' &&Rbits[5]= '1'
-    } 
-    else if (Sym.phase==-2)
-
-    {
-        Rbits[3]='0' && Rbits[4]='1' &&Rbits[5]= '1' ;
-    } 
-    else if (Sym.phase==-1)
-
-    {
-        Rbits[3]='0' && Rbits[4]='1' &&Rbits[5]= '0' ;
-    } 
-    else if (Sym.phase==1)
-
-    {
-        Rbits[3]='1' && Rbits[4]='1' &&Rbits[5]= '0' ;
-    } 
-    else if (Sym.phase==2)
-
-    {
-        Rbits[3]='1' && Rbits[4]='1' &&Rbits[5]= '1' ;
-    } 
-    else if (Sym.phase==3)
-
-    {
-        Rbits[3]='1' && Rbits[4]='0' &&Rbits[5]= '1' ;
-    } 
-    else if (Sym.phase==4)
-
-    {
-        Rbits[3]='1' && Rbits[4]='0' &&Rbits[5]= '0' ;
+    else if (Sym->amplitude == 4) {
+        RBits->bitstring[0] = '1';
+        RBits->bitstring[1] = '0';
+        RBits->bitstring[2] = '0';
     }
 }
-
-void Decoding()
-{
-    
 }
 
-void ErrorDetect()
-{}
 
-void NoiseAddition()
+__global__ void ImaginaryDeModulation(Symbol *Sym, BitStream *RBits, numSymbols)
 {
-
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchsize = 10;
+    if (idx < numSymbols / batchSize) {
+    // Corrected the comparison with the fixed-size array and proper assignment
+    if (Sym->phase == -4) {
+        RBits->bitstring[3] = '0';
+        RBits->bitstring[4] = '0';
+        RBits->bitstring[5] = '0';
+    }
+    else if (Sym->phase == -3) {
+        RBits->bitstring[3] = '0';
+        RBits->bitstring[4] = '0';
+        RBits->bitstring[5] = '1';
+    } 
+    else if (Sym->phase == -2) {
+        RBits->bitstring[3] = '0';
+        RBits->bitstring[4] = '1';
+        RBits->bitstring[5] = '1';
+    } 
+    else if (Sym->phase == -1) {
+        RBits->bitstring[3] = '0';
+        RBits->bitstring[4] = '1';
+        RBits->bitstring[5] = '0';
+    } 
+    else if (Sym->phase == 1) {
+        RBits->bitstring[3] = '1';
+        RBits->bitstring[4] = '1';
+        RBits->bitstring[5] = '0';
+    } 
+    else if (Sym->phase == 2) {
+        RBits->bitstring[3] = '1';
+        RBits->bitstring[4] = '1';
+        RBits->bitstring[5] = '1';
+    } 
+    else if (Sym->phase == 3) {
+        RBits->bitstring[3] = '1';
+        RBits->bitstring[4] = '0';
+        RBits->bitstring[5] = '1';
+    } 
+    else if (Sym->phase == 4) {
+        RBits->bitstring[3] = '1';
+        RBits->bitstring[4] = '0';
+        RBits->bitstring[5] = '0';
+    }
+}
 }
 
 int main() {
-    // Seed the random number generator
-    srand(time(0)); 
+    // Host objects
+    BitStream hostStream;
+    BitStream outstream;
+    Symbol hostSymbol;
+    int numSymbols = 10;
 
-    int length;
-    cout << "Enter the length of each string: ";
-    cin >> length;
+     // Initialize random seed
+     srand(time(0));  // Seed with the current time to get different results each run
 
-    // Vector to store the random strings
-    vector<string> randomStrings;
+     const int numArrays = 10;  // Number of arrays
+     const int arraySize = 3;   // Size of each array
+ 
+     // Declare a 2D array to store the arrays
+     int arrays[numArrays][arraySize];
+ 
+     // Fill each array with random 0 or 1
+     for (int i = 0; i < numArrays; ++i) {
+         for (int j = 0; j < arraySize; ++j) {
+             arrays[i][j] = rand() % 2;  // Randomly select 0 or 1
+         }
+     }
+ 
+     // Output the arrays
+     for (int i = 0; i < numArrays; ++i) {
+         for (int j = 0; j < arraySize; ++j) {
+             std::cout << arrays[i][j] << " ";  // Print each element
+         }
+         std::cout << std::endl;  // New line after each array
+     }
+ 
+    // Device pointers
+    BitStream *devStream;
+    Symbol *devSymbol;
 
-    for (int j = 0; j < 10; j++) { // Loop to generate 10 strings
-        string randomString = "";
+    // Allocate memory on the device
+    cudaMalloc((void**)&devStream, sizeof(BitStream));
+    cudaMalloc((void**)&devSymbol, sizeof(Symbol));
 
-        for (int i = 0; i < length; i++) {
-            // Generate a random number, either 0 or 1
-            int randomBit = rand() % 2; 
+    // Copy host data to device
+    cudaMemcpy(devStream, &hostStream, sizeof(BitStream), cudaMemcpyHostToDevice);
+    cudaMemcpy(devSymbol, &hostSymbol, sizeof(Symbol), cudaMemcpyHostToDevice);
 
-            // Append the random bit to the string
-            randomString += to_string(randomBit); 
-        }
+    // Launch the kernel
+    RealModulation<<<1, 1>>>(devStream, devSymbol);
+    ImaginaryModulation<<<1, 1>>>(devStream, devSymbol);
+    
 
-        // Store the random string in the vector
-        randomStrings.push_back(randomString);
-    }
+    // Check for errors in kernel launch
+    cudaDeviceSynchronize();
 
-    // Output all stored random strings
-    for (int i = 0; i < randomStrings.size(); i++) {
-        cout << "Random string " << i + 1 << ": " << randomStrings[i] << endl;
-    }
+    // Copy the result back to the host
+    cudaMemcpy(&hostSymbol, devSymbol, sizeof(Symbol), cudaMemcpyDeviceToHost);
 
-    return 0;
+    
+    cout << "Amplitude: " << hostSymbol.amplitude << endl;
+    cout << "Phase: " << hostSymbol.phase << endl; 
+
+
+
+
+    // Free device memory
+    cudaFree(devStream);
+    cudaFree(devSymbol);
+
 }
+
+
+
+
