@@ -1,0 +1,413 @@
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <cstring>
+
+using namespace std;
+
+class Managed {
+public:
+    void* operator new(size_t len) {
+        void* ptr;
+        cudaMallocManaged(&ptr, len);
+        cudaDeviceSynchronize();
+        return ptr;
+    }
+
+    void operator delete(void* ptr) {
+        cudaDeviceSynchronize();
+        cudaFree(ptr);
+    }
+};
+
+class Symbol : public Managed {
+public:
+    int amplitude;
+    int phase;
+
+    Symbol() : amplitude(0), phase(0) {}  // Default constructor
+    Symbol(int amp, int ph) : amplitude(amp), phase(ph) {}  // Parameterized constructor
+};
+
+
+__global__ void HammingCodes(int *dataArray, int *parityArray, int *numOfArrays, int *TBits)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < *numOfArrays) {  // Corrected to dereference numOfArrays
+        int *currentTbits = &TBits[idx * 6];  // Each BitStream has 6 elements, so multiply idx by 6
+        
+        // Extract the data bits for the current idx
+        int d1 = dataArray[idx * 3 + 0];
+        int d2 = dataArray[idx * 3 + 1];
+        int d3 = dataArray[idx * 3 + 2];
+
+        int p1,p2,p3;
+        
+        // Assign parity bits based on data bits (according to the mapping given)
+        if ((d1 == 0 && d2 == 0 && d3 == 0) || (d1 == 1 && d2 == 1 && d3 == 1)) {
+            // data = 000 or 111, parity = 000
+            p1 = 0; p2 = 0; p3 = 0;
+        }
+        else if ((d1 == 0 && d2 == 0 && d3 == 1) || (d1 == 1 && d2 == 1 && d3 == 0)) {
+            // data = 001 or 110, parity = 011
+            p1 = 0; p2 = 1; p3 = 1;
+        }
+        else if ((d1 == 0 && d2 == 1 && d3 == 0) || (d1 == 1 && d2 == 0 && d3 == 1)) {
+            // data = 010 or 101, parity = 101
+            p1 = 1; p2 = 0; p3 = 1;
+        }
+        else if ((d1 == 0 && d2 == 1 && d3 == 1) || (d1 == 1 && d2 == 0 && d3 == 0)) {
+            // data = 011 or 100, parity = 110
+            p1 = 1; p2 = 1; p3 = 0;
+        }
+
+        // Assign the parity and data bits to the currentTbits array
+        currentTbits[0] = p1;  // p1
+        currentTbits[1] = p2;  // p2
+        currentTbits[2] = d1;  // d1
+        currentTbits[3] = p3;  // p3
+        currentTbits[4] = d2;  // d2
+        currentTbits[5] = d3;  // d3
+    }
+}
+
+__global__ void RealModulation(Symbol* symbols, int* TBits, int numSymbols) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;  // Use threadIdx.x for indexing
+    if (idx < numSymbols) {  // Ensure we don't exceed bounds of numSymbols
+
+        // TBits contains the bitstrings, assumed to be 0 or 1
+        // Each TBits index holds a bitstring of length 3 (for this example)
+        int bit1 = TBits[idx * 3 + 0];    // bit 1 of the bitstring
+        int bit2 = TBits[idx * 3 + 1];  // bit 2 of the bitstring
+        int bit3 = TBits[idx * 3 + 2];  // bit 3 of the bitstring
+
+        // Modulate amplitude based on bitstring (example values)
+        if (bit1 == 0 && bit2 == 0 && bit3 == 0) {
+            symbols[idx].amplitude = -4;
+        }
+        else if (bit1 == 0 && bit2 == 0 && bit3 == 1) {
+            symbols[idx].amplitude = -3;
+        }
+        else if (bit1 == 0 && bit2 == 1 && bit3 == 1) {
+            symbols[idx].amplitude = -2;
+        }
+        else if (bit1 == 0 && bit2 == 1 && bit3 == 0) {
+            symbols[idx].amplitude = -1;
+        }
+        else if (bit1 == 1 && bit2 == 1 && bit3 == 0) {
+            symbols[idx].amplitude = 1;
+        }
+        else if (bit1 == 1 && bit2 == 1 && bit3 == 1) {
+            symbols[idx].amplitude = 2;
+        }
+        else if (bit1 == 1 && bit2 == 0 && bit3 == 1) {
+            symbols[idx].amplitude = 3;
+        }
+        else if (bit1 == 1 && bit2 == 0 && bit3 == 0) {
+            symbols[idx].amplitude = 4;
+        }
+    }
+}
+
+// Kernel to modulate phase based on bitstring
+__global__ void ImaginaryModulation(Symbol* symbols, int* TBits, int numSymbols) { 
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;  // Use threadIdx.x for indexing
+    if (idx < numSymbols) {  // Ensure we don't exceed bounds of numSymbols
+
+        // TBits contains the bitstrings, assumed to be 0 or 1
+        // Each TBits index holds a bitstring of length 6 (for this example)
+        // Bits 4, 5, and 6 (TBits[idx * 6 + 3], TBits[idx*6 + 4], TBits[idx*6 + 5]) are used for phase
+        int bit4 = TBits[idx * 6 + 3];  // bit 4 of the bitstring
+        int bit5 = TBits[idx * 6 + 4];  // bit 5 of the bitstring
+        int bit6 = TBits[idx * 6 + 5];  // bit 6 of the bitstring
+
+        // Modulate phase based on bits 4, 5, and 6 (example values)
+        if (bit4 == 0 && bit5 == 0 && bit6 == 0) {
+            symbols[idx].phase = -4;
+        }
+        else if (bit4 == 0 && bit5 == 0 && bit6 == 1) {
+            symbols[idx].phase = -3;
+        }
+        else if (bit4 == 0 && bit5 == 1 && bit6 == 1) {
+            symbols[idx].phase = -2;
+        }
+        else if (bit4 == 0 && bit5 == 1 && bit6 == 0) {
+            symbols[idx].phase = -1;
+        }
+        else if (bit4 == 1 && bit5 == 1 && bit6 == 0) {
+            symbols[idx].phase = 1;
+        }
+        else if (bit4 == 1 && bit5 == 1 && bit6 == 1) {
+            symbols[idx].phase = 2;
+        }
+        else if (bit4 == 1 && bit5 == 0 && bit6 == 1) {
+            symbols[idx].phase = 3;
+        }
+        else if (bit4 == 1 && bit5 == 0 && bit6 == 0) {
+            symbols[idx].phase = 4;
+        }
+    }
+}
+
+__global__ void RealDeModulation(Symbol* symbols, int* RBitsRE, int numSymbols)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < numSymbols) {
+
+        int bit1 =RBitsRE[idx * 3 + 0];    // bit 1 of the bitstring
+        int bit2 = RBitsRE[idx * 3 + 1];  // bit 2 of the bitstring
+        int bit3 = RBitsRE[idx * 3 + 2];  // bit 3 of the bitstring
+    // Corrected the comparison with the fixed-size array and proper assignment
+    if (symbols[idx].amplitude == -4) {
+        bit1=0;
+        bit2=0;
+        bit3=0;
+    }
+    else if (symbols[idx].amplitude == -3) {
+        bit1=0;
+        bit2=0;
+        bit3=1;
+    } 
+    else if (symbols[idx].amplitude == -2) {
+        bit1=0;
+        bit2=1;
+        bit3=1;
+    } 
+    else if (symbols[idx].amplitude == -1) {
+        bit1=0;
+        bit2=1;
+        bit3=0;
+    } 
+    else if (symbols[idx].amplitude == 1) {
+        bit1=1;
+        bit2=1;
+        bit3=0;
+    } 
+    else if (symbols[idx].amplitude == 2) {
+        bit1=1;
+        bit2=1;
+        bit3=1;
+    } 
+    else if (symbols[idx].amplitude == 3) {
+        bit1=1;
+        bit2=0;
+        bit3=1;
+    } 
+    else if (symbols[idx].amplitude == 4) {
+        bit1=1;
+        bit2=0;
+        bit3=0;
+    }
+    // Assign updated bits back to RBits array
+    RBitsRE[idx * 3] = bit1;
+    RBitsRE[idx * 3 + 1] = bit2;
+    RBitsRE[idx * 3 + 2] = bit3;
+}
+
+}
+__global__ void ImaginaryDeModulation(Symbol* symbols, int* RBitsIM, int numSymbols)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < numSymbols) {
+
+        int bit4 = RBitsIM[idx * 3 + 0];    // bit 1 of the bitstring
+        int bit5 = RBitsIM[idx * 3 + 1];  // bit 2 of the bitstring
+        int bit6 = RBitsIM[idx * 3 + 2];  // bit 3 of the bitstring
+    // Corrected the comparison with the fixed-size array and proper assignment
+    if (symbols[idx].phase == -4) {
+        bit4=0;
+        bit5=0;
+        bit6=0;
+    }
+    else if (symbols[idx].phase == -3) {
+        bit4=0;
+        bit5=0;
+        bit6=1;
+    } 
+    else if (symbols[idx].phase == -2) {
+        bit4=0;
+        bit5=1;
+        bit6=1;
+    } 
+    else if (symbols[idx].phase == -1) {
+        bit4=0;
+        bit5=1;
+        bit6=0;
+    } 
+    else if (symbols[idx].phase == 1) {
+        bit4=1;
+        bit5=1;
+        bit6=0;
+    } 
+    else if (symbols[idx].phase == 2) {
+        bit4=1;
+        bit5=1;
+        bit6=1;
+    } 
+    else if (symbols[idx].phase == 3) {
+        bit4=1;
+        bit5=0;
+        bit6=1;
+    } 
+    else if (symbols[idx].phase == 4) {
+        bit4=1;
+        bit5=0;
+        bit6=0;
+    }
+    // Assign updated bits back to RBits array
+    RBitsIM[idx * 3] = bit4;
+    RBitsIM[idx * 3 +1] = bit5;
+    RBitsIM[idx * 3 +2] = bit6;
+}
+}
+
+int main() {
+    const int numOfArrays = 4;
+    const int rows = numOfArrays;
+    const int cols = 3;
+    const int numSymbols = numOfArrays;
+    
+    int dataArray[rows][cols];  // Declare a 2D array for the data (10x3)
+    int parityArray[rows][cols];  // Declare a 2D array for the parity (10x3)
+    
+    srand(time(0));  // Seed the random number generator
+
+    // Fill the data array with random values (0 or 1)
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            dataArray[i][j] = rand() % 2;  // Random 0 or 1
+        }
+    }
+
+    // Fill the parity array with initial values (0)
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            parityArray[i][j] = 0;  // Initially zero, will be modified by kernel
+        }
+    }
+
+    // Output the data array
+    cout << "Data Array:" << endl;
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            cout << dataArray[i][j] << " ";
+        }
+        cout << endl;
+    }
+
+    // CUDA memory allocation
+    int *d_DataArray, *d_ParityArray, *d_NumArrays, *d_TBits;
+
+    cudaMalloc((void**)&d_DataArray, sizeof(int) * numOfArrays * 3);  // 3 ints for each data array
+    cudaMalloc((void**)&d_ParityArray, sizeof(int) * numOfArrays * 3);  // Parity array (3 per data array)
+    cudaMalloc((void**)&d_NumArrays, sizeof(int));  // Only one integer for numOfArrays
+    cudaMalloc((void**)&d_TBits, sizeof(int) * numOfArrays * 6);  // 6 ints for each BitStream (Hamming code)
+
+
+    // Copy data from host to device
+    cudaMemcpy(d_DataArray, dataArray, sizeof(int) * numOfArrays * 3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ParityArray, parityArray, sizeof(int) * numOfArrays * 3, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_NumArrays, &numOfArrays, sizeof(int), cudaMemcpyHostToDevice);
+
+    // Kernel launch
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (numSymbols + threadsPerBlock - 1) / threadsPerBlock;
+
+    HammingCodes<<<blocksPerGrid, threadsPerBlock>>>(d_DataArray, d_ParityArray, d_NumArrays, d_TBits);
+
+    // Wait for the GPU to finish
+    cudaDeviceSynchronize();
+
+    // Copy results back to host
+    int *TBits_host = new int[numOfArrays * 6];  // Allocate memory for Hamming code (6 ints per array)
+    cudaMemcpy(TBits_host, d_TBits, sizeof(int) * numOfArrays * 6, cudaMemcpyDeviceToHost);
+
+     // Output the Hamming code (TBits)
+     cout << "Hamming Code (TBits):" << endl;
+     for (int i = 0; i < numOfArrays; i++) {
+         cout << "BitStream " << i << ": ";
+         for (int j = 0; j < 6; j++) {
+             cout << TBits_host[i * 6 + j] << " ";
+         }
+         cout << endl;
+     }
+
+    Symbol *u_symbol;
+    int numOfSymbols = numOfArrays;
+ 
+    cudaMallocManaged((void**)&u_symbol, numOfSymbols * sizeof(Symbol));
+    cudaDeviceSynchronize();
+ 
+    RealModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_TBits,numOfSymbols);
+    cudaDeviceSynchronize();
+    ImaginaryModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_TBits,numOfSymbols);
+    cudaDeviceSynchronize();
+    // Print the results
+    for (int i = 0; i < numOfSymbols; i++) {
+        std::cout << "Symbol " << i << " Amplitude: " << u_symbol[i].amplitude << std::endl;
+    }
+    // Print the results
+    for (int i = 0; i < numOfSymbols; i++) {
+        std::cout << "Symbol " << i << " Phase : " << u_symbol[i].phase << std::endl;
+    }
+    cout << "........................." << endl;
+    cout << " transmission " << endl; 
+
+    //int *d_RBits;
+    int *d_RBitsRE;
+    int *d_RBitsIM;
+
+    cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*3);
+    cudaMalloc((void**)&d_RBitsIM,sizeof(int)*numOfArrays*3);
+
+    int *RBitsRE_host = new int[numOfArrays * 3];  
+    RealDeModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_RBitsRE,numOfSymbols);
+    cudaDeviceSynchronize();
+    cudaMemcpy(RBitsRE_host, d_RBitsRE, sizeof(int) * numOfArrays *3, cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < numOfArrays; i++) {
+        cout << "Bitsream real " << i << ": ";
+        for (int j = 0; j < 3; j++) {
+            cout << RBitsRE_host[i * 3 + j] << " ";
+        }
+        cout << endl;
+    }
+
+    
+
+    int *RBitsIM_host = new int[numOfArrays * 3];
+    ImaginaryDeModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_RBitsIM,numOfSymbols);
+    cudaDeviceSynchronize();
+    cudaMemcpy(RBitsIM_host,d_RBitsIM,sizeof(int)*numOfArrays*3,cudaMemcpyDeviceToHost);
+    for (int i = 0; i < numOfArrays; i++) {
+        cout << "Bitsream Imaginary " << i << ": ";
+        for (int j = 0; j < 3; j++) {
+            cout << RBitsIM_host[i * 3 + j] << " ";
+        }
+        cout << endl;
+    }
+
+    // Copy results back to host
+    cudaDeviceSynchronize();
+
+
+    
+
+
+    // Copy modified parityArray back to host
+    cudaMemcpy(parityArray, d_ParityArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
+    cudaMemcpy(dataArray, d_DataArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
+
+    // Free device memory
+    cudaFree(d_DataArray);
+    cudaFree(d_ParityArray);
+    cudaFree(d_NumArrays);
+    cudaFree(d_TBits);
+    cudaFree(u_symbol);
+    cudaFree(d_RBitsRE);
+    cudaFree(d_RBitsIM);
+    // Clean up
+    delete[] TBits_host;
+
+    return 0;
+}
