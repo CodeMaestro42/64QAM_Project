@@ -412,9 +412,6 @@ int main() {
     cudaFree(d_RBitsIM);
     // Clean up
     delete[] TBits_host;
-
-    return 0;
-}
-
+    
     return 0;
 }
