@@ -357,20 +357,24 @@ int main() {
     int *d_RBitsRE;
     int *d_RBitsIM;
 
-    cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*3);
+    cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*6);
     cudaMalloc((void**)&d_RBitsIM,sizeof(int)*numOfArrays*3);
 
-    int *RBitsRE_host = new int[numOfArrays * 3];  
+    int *RBitsRE_host = new int[numOfArrays * 6];  
     RealDeModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_RBitsRE,numOfSymbols);
     cudaDeviceSynchronize();
-    cudaMemcpy(RBitsRE_host, d_RBitsRE, sizeof(int) * numOfArrays *3, cudaMemcpyDeviceToHost);
+    cudaMemcpy(RBitsRE_host, d_RBitsRE, sizeof(int) * numOfArrays *6, cudaMemcpyDeviceToHost);
 
-    for (int i = 0; i < numOfArrays; i++) {
-        cout << "Bitsream real " << i << ": ";
+    int count = 0;
+    for (int i = 0; i < numOfArrays * 2; i++) {
+    if (i % 2 == 0) { // Check if i is even
+        cout << "Bitsream real " << count/2 << ": ";
         for (int j = 0; j < 3; j++) {
             cout << RBitsRE_host[i * 3 + j] << " ";
         }
         cout << endl;
+    }
+    count++; // Increment count after checking i
     }
 
     
@@ -408,6 +412,9 @@ int main() {
     cudaFree(d_RBitsIM);
     // Clean up
     delete[] TBits_host;
+
+    return 0;
+}
 
     return 0;
 }
