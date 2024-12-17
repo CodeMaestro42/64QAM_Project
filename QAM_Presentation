@@ -74,7 +74,7 @@ __global__ void RealModulation(Symbol* symbols, int* TBits, int numSymbols) {
             symbols[idx].amplitude = -5;
         }
         else if (bit1 == 0 && bit2 == 1 && bit3 == 1) {
-            symbols[idx].amplitude = -4;
+            symbols[idx].amplitude = -3;
         }
         else if (bit1 == 0 && bit2 == 1 && bit3 == 0) {
             symbols[idx].amplitude = -1;
