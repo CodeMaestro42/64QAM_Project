@@ -10,16 +10,16 @@ public:
     int amplitude;
     int phase;
 
-    Symbol() : amplitude(0), phase(0) {}  // Default constructor
-    Symbol(int amp, int ph) : amplitude(amp), phase(ph) {}  // Parameterized constructor
+    Symbol() : amplitude(0), phase(0) {}  // default constructor
+    Symbol(int amp, int ph) : amplitude(amp), phase(ph) {}  // parametrized constructor
 };
 
 
 __global__ void HammingCodes(int *dataArray, int *parityArray, int *numOfArrays, int *TBits)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < *numOfArrays) {  // Corrected to dereference numOfArrays
-        int *currentTbits = &TBits[idx * 6];  // Each BitStream has 6 elements, so multiply idx by 6
+    if (idx < *numOfArrays) {  // dereference numOfArrays
+        int *currentTbits = &TBits[idx * 6];  // 6 elements each bitstream multiply idx by 6
         
         // Extract the data bits for the current idx
         int d1 = dataArray[idx * 3 + 0];
@@ -28,7 +28,7 @@ __global__ void HammingCodes(int *dataArray, int *parityArray, int *numOfArrays,
 
         int p1,p2,p3;
         
-        // Assign parity bits based on data bits (according to the mapping given)
+        // Assign parity bits based on data bits 
         if ((d1 == 0 && d2 == 0 && d3 == 0) || (d1 == 1 && d2 == 1 && d3 == 1)) {
             // data = 000 or 111, parity = 000
             p1 = 0; p2 = 0; p3 = 0;
@@ -68,13 +68,13 @@ __global__ void RealModulation(Symbol* symbols, int* TBits, int numSymbols) {
 
         // Modulate amplitude based on bitstring (example values)
         if (bit1 == 0 && bit2 == 0 && bit3 == 0) {
-            symbols[idx].amplitude = -4;
+            symbols[idx].amplitude = -7;
         }
         else if (bit1 == 0 && bit2 == 0 && bit3 == 1) {
-            symbols[idx].amplitude = -3;
+            symbols[idx].amplitude = -5;
         }
         else if (bit1 == 0 && bit2 == 1 && bit3 == 1) {
-            symbols[idx].amplitude = -2;
+            symbols[idx].amplitude = -4;
         }
         else if (bit1 == 0 && bit2 == 1 && bit3 == 0) {
             symbols[idx].amplitude = -1;
@@ -83,13 +83,13 @@ __global__ void RealModulation(Symbol* symbols, int* TBits, int numSymbols) {
             symbols[idx].amplitude = 1;
         }
         else if (bit1 == 1 && bit2 == 1 && bit3 == 1) {
-            symbols[idx].amplitude = 2;
-        }
-        else if (bit1 == 1 && bit2 == 0 && bit3 == 1) {
             symbols[idx].amplitude = 3;
         }
+        else if (bit1 == 1 && bit2 == 0 && bit3 == 1) {
+            symbols[idx].amplitude = 5;
+        }
         else if (bit1 == 1 && bit2 == 0 && bit3 == 0) {
-            symbols[idx].amplitude = 4;
+            symbols[idx].amplitude = 7;
         }
     }
 }
@@ -108,13 +108,13 @@ __global__ void ImaginaryModulation(Symbol* symbols, int* TBits, int numSymbols)
 
         // Modulate phase based on bits 4, 5, and 6 (example values)
         if (bit4 == 0 && bit5 == 0 && bit6 == 0) {
-            symbols[idx].phase = -4;
+            symbols[idx].phase = -7;
         }
         else if (bit4 == 0 && bit5 == 0 && bit6 == 1) {
-            symbols[idx].phase = -3;
+            symbols[idx].phase = -5;
         }
         else if (bit4 == 0 && bit5 == 1 && bit6 == 1) {
-            symbols[idx].phase = -2;
+            symbols[idx].phase = -3;
         }
         else if (bit4 == 0 && bit5 == 1 && bit6 == 0) {
             symbols[idx].phase = -1;
@@ -123,13 +123,13 @@ __global__ void ImaginaryModulation(Symbol* symbols, int* TBits, int numSymbols)
             symbols[idx].phase = 1;
         }
         else if (bit4 == 1 && bit5 == 1 && bit6 == 1) {
-            symbols[idx].phase = 2;
-        }
-        else if (bit4 == 1 && bit5 == 0 && bit6 == 1) {
             symbols[idx].phase = 3;
         }
+        else if (bit4 == 1 && bit5 == 0 && bit6 == 1) {
+            symbols[idx].phase = 5;
+        }
         else if (bit4 == 1 && bit5 == 0 && bit6 == 0) {
-            symbols[idx].phase = 4;
+            symbols[idx].phase = 7;
         }
     }
 }
@@ -143,17 +143,17 @@ __global__ void RealDeModulation(Symbol* symbols, int* RBitsRE, int numSymbols)
         int bit2 = RBitsRE[idx * 3 + 1];  // bit 2 of the bitstring
         int bit3 = RBitsRE[idx * 3 + 2];  // bit 3 of the bitstring
     // Corrected the comparison with the fixed-size array and proper assignment
-    if (symbols[idx].amplitude == -4) {
+    if (symbols[idx].amplitude == -7) {
         bit1=0;
         bit2=0;
         bit3=0;
     }
-    else if (symbols[idx].amplitude == -3) {
+    else if (symbols[idx].amplitude == -5) {
         bit1=0;
         bit2=0;
         bit3=1;
     } 
-    else if (symbols[idx].amplitude == -2) {
+    else if (symbols[idx].amplitude == -3) {
         bit1=0;
         bit2=1;
         bit3=1;
@@ -168,17 +168,17 @@ __global__ void RealDeModulation(Symbol* symbols, int* RBitsRE, int numSymbols)
         bit2=1;
         bit3=0;
     } 
-    else if (symbols[idx].amplitude == 2) {
+    else if (symbols[idx].amplitude == 3) {
         bit1=1;
         bit2=1;
         bit3=1;
     } 
-    else if (symbols[idx].amplitude == 3) {
+    else if (symbols[idx].amplitude == 5) {
         bit1=1;
         bit2=0;
         bit3=1;
     } 
-    else if (symbols[idx].amplitude == 4) {
+    else if (symbols[idx].amplitude == 7) {
         bit1=1;
         bit2=0;
         bit3=0;
@@ -199,17 +199,17 @@ __global__ void ImaginaryDeModulation(Symbol* symbols, int* RBitsIM, int numSymb
         int bit5 = RBitsIM[idx * 3 + 1];  // bit 2 of the bitstring
         int bit6 = RBitsIM[idx * 3 + 2];  // bit 3 of the bitstring
     // Corrected the comparison with the fixed-size array and proper assignment
-    if (symbols[idx].phase == -4) {
+    if (symbols[idx].phase == -7) {
         bit4=0;
         bit5=0;
         bit6=0;
     }
-    else if (symbols[idx].phase == -3) {
+    else if (symbols[idx].phase == -5) {
         bit4=0;
         bit5=0;
         bit6=1;
     } 
-    else if (symbols[idx].phase == -2) {
+    else if (symbols[idx].phase == -3) {
         bit4=0;
         bit5=1;
         bit6=1;
@@ -224,17 +224,17 @@ __global__ void ImaginaryDeModulation(Symbol* symbols, int* RBitsIM, int numSymb
         bit5=1;
         bit6=0;
     } 
-    else if (symbols[idx].phase == 2) {
+    else if (symbols[idx].phase == 3) {
         bit4=1;
         bit5=1;
         bit6=1;
     } 
-    else if (symbols[idx].phase == 3) {
+    else if (symbols[idx].phase == 5) {
         bit4=1;
         bit5=0;
         bit6=1;
     } 
-    else if (symbols[idx].phase == 4) {
+    else if (symbols[idx].phase == 7) {
         bit4=1;
         bit5=0;
         bit6=0;
@@ -322,7 +322,7 @@ int main() {
     int numOfSymbols = numOfArrays;
  
     // Allocate memory on the device for d_symbol
-    cudaMalloc((void**)&d_symbol, sizeof(Symbol) * numOfSymbols);
+    cudaMalloc((void**)&d_symbol, sizeof(int) * numOfSymbols * 2);
 
     // Launch RealModulation kernel
     RealModulation<<<blocksPerGrid, threadsPerBlock>>>(d_symbol, d_TBits, numOfSymbols);
@@ -348,19 +348,18 @@ int main() {
     }
 
     std::cout << "........................." << std::endl;
-    std::cout << "Transmission Complete" << std::endl;
+    std::cout << "Transmission " << std::endl;
 
     //int *d_RBits;
     int *d_RBitsRE;
-    cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*3);
-
     int *RBitsRE_host = new int[numOfArrays * 3];  
-
+    
+    cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*3);
     RealDeModulation<<<blocksPerGrid,threadsPerBlock>>>(d_symbol,d_RBitsRE,numOfSymbols);
     cudaDeviceSynchronize();
     cudaMemcpy(RBitsRE_host, d_RBitsRE, sizeof(int) * numOfArrays *3, cudaMemcpyDeviceToHost);
 
-    for (int i = 0; i < numOfArrays; i++) {
+    for (int i = 0; i < numOfArrays  ; i++) {
     cout << "Bitstream Real " << i << ": ";
     for (int j = 0; j < 3; j++) {
         cout << RBitsRE_host[i * 3 + j] << " ";
@@ -375,7 +374,8 @@ int main() {
     cudaMalloc((void**)&d_RBitsIM,sizeof(int)*numOfArrays*3);
     ImaginaryDeModulation<<<blocksPerGrid,threadsPerBlock>>>(d_symbol,d_RBitsIM,numOfSymbols);
     cudaDeviceSynchronize();
-    cudaMemcpy(RBitsIM_host,d_RBitsIM,sizeof(int)*numOfArrays*3,cudaMemcpyDeviceToHost);
+    cudaMemcpy(RBitsIM_host, d_RBitsIM,sizeof(int)*numOfArrays*3,cudaMemcpyDeviceToHost);
+
     for (int i = 0; i < numOfArrays; i++) {
         cout << "Bitsream Imaginary " << i << ": ";
         for (int j = 0; j < 3; j++) {
@@ -401,7 +401,6 @@ int main() {
     // Free allocated memory
     delete[] h_symbol;  // Free host memory
     cudaFree(d_symbol);  // Free device memory
-    // Clean up
     delete[] TBits_host;
     return 0;
 }
