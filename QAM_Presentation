@@ -402,5 +402,7 @@ int main() {
     delete[] h_symbol;  // Free host memory
     cudaFree(d_symbol);  // Free device memory
     delete[] TBits_host;
+    delete[] RBitsRE_host;
+    delete[] RBitsIM_host;
     return 0;
 }
