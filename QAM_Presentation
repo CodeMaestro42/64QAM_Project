@@ -154,56 +154,55 @@ __global__ void RealDeModulation(Symbol* symbols, int* RBitsRE, int numSymbols)
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < numSymbols) {
 
-        int bit1 =RBitsRE[idx * 3 + 0];    // bit 1 of the bitstring
-        int bit2 = RBitsRE[idx * 3 + 1];  // bit 2 of the bitstring
-        int bit3 = RBitsRE[idx * 3 + 2];  // bit 3 of the bitstring
+        int bit4 = RBitsRE[idx * 3 + 0];    // bit 1 of the bitstring
+        int bit5 = RBitsRE[idx * 3 + 1];  // bit 2 of the bitstring
+        int bit6 = RBitsRE[idx * 3 + 2];  // bit 3 of the bitstring
     // Corrected the comparison with the fixed-size array and proper assignment
-    if (symbols[idx].amplitude == -4) {
-        bit1=0;
-        bit2=0;
-        bit3=0;
+    if (symbols[idx].phase == -4) {
+        bit4=0;
+        bit5=0;
+        bit6=0;
     }
-    else if (symbols[idx].amplitude == -3) {
-        bit1=0;
-        bit2=0;
-        bit3=1;
+    else if (symbols[idx].phase == -3) {
+        bit4=0;
+        bit5=0;
+        bit6=1;
     } 
-    else if (symbols[idx].amplitude == -2) {
-        bit1=0;
-        bit2=1;
-        bit3=1;
+    else if (symbols[idx].phase == -2) {
+        bit4=0;
+        bit5=1;
+        bit6=1;
     } 
-    else if (symbols[idx].amplitude == -1) {
-        bit1=0;
-        bit2=1;
-        bit3=0;
+    else if (symbols[idx].phase == -1) {
+        bit4=0;
+        bit5=1;
+        bit6=0;
     } 
-    else if (symbols[idx].amplitude == 1) {
-        bit1=1;
-        bit2=1;
-        bit3=0;
+    else if (symbols[idx].phase == 1) {
+        bit4=1;
+        bit5=1;
+        bit6=0;
     } 
-    else if (symbols[idx].amplitude == 2) {
-        bit1=1;
-        bit2=1;
-        bit3=1;
+    else if (symbols[idx].phase == 2) {
+        bit4=1;
+        bit5=1;
+        bit6=1;
     } 
-    else if (symbols[idx].amplitude == 3) {
-        bit1=1;
-        bit2=0;
-        bit3=1;
+    else if (symbols[idx].phase == 3) {
+        bit4=1;
+        bit5=0;
+        bit6=1;
     } 
-    else if (symbols[idx].amplitude == 4) {
-        bit1=1;
-        bit2=0;
-        bit3=0;
+    else if (symbols[idx].phase == 4) {
+        bit4=1;
+        bit5=0;
+        bit6=0;
     }
     // Assign updated bits back to RBits array
-    RBitsRE[idx * 3] = bit1;
-    RBitsRE[idx * 3 + 1] = bit2;
-    RBitsRE[idx * 3 + 2] = bit3;
+    RBitsRE[idx * 3] = bit4;
+    RBitsRE[idx * 3 +1] = bit5;
+    RBitsRE[idx * 3 +2] = bit6;
 }
-
 }
 __global__ void ImaginaryDeModulation(Symbol* symbols, int* RBitsIM, int numSymbols)
 {
@@ -255,7 +254,7 @@ __global__ void ImaginaryDeModulation(Symbol* symbols, int* RBitsIM, int numSymb
         bit6=0;
     }
     // Assign updated bits back to RBits array
-    RBitsIM[idx * 3] = bit4;
+    RBitsIM[idx * 3 +0]= bit4;
     RBitsIM[idx * 3 +1] = bit5;
     RBitsIM[idx * 3 +2] = bit6;
 }
@@ -353,13 +352,20 @@ int main() {
     cout << "........................." << endl;
     cout << " transmission " << endl; 
 
+     // Copy modified parityArray back to host
+     cudaMemcpy(parityArray, d_ParityArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
+     cudaMemcpy(dataArray, d_DataArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
+ 
+     // Free device memory
+     cudaFree(d_DataArray);
+     cudaFree(d_ParityArray);
+     cudaFree(d_NumArrays);
+     cudaFree(d_TBits);
+
     //int *d_RBits;
     int *d_RBitsRE;
-    int *d_RBitsIM;
 
     cudaMalloc((void**)&d_RBitsRE,sizeof(int)*numOfArrays*6);
-    cudaMalloc((void**)&d_RBitsIM,sizeof(int)*numOfArrays*3);
-
     int *RBitsRE_host = new int[numOfArrays * 6];  
     RealDeModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_RBitsRE,numOfSymbols);
     cudaDeviceSynchronize();
@@ -376,10 +382,10 @@ int main() {
     }
     count++; // Increment count after checking i
     }
-
     
-
+    int *d_RBitsIM;
     int *RBitsIM_host = new int[numOfArrays * 3];
+    cudaMalloc((void**)&d_RBitsIM,sizeof(int)*numOfArrays*3);
     ImaginaryDeModulation<<<blocksPerGrid,threadsPerBlock>>>(u_symbol,d_RBitsIM,numOfSymbols);
     cudaDeviceSynchronize();
     cudaMemcpy(RBitsIM_host,d_RBitsIM,sizeof(int)*numOfArrays*3,cudaMemcpyDeviceToHost);
@@ -394,24 +400,10 @@ int main() {
     // Copy results back to host
     cudaDeviceSynchronize();
 
-
-    
-
-
-    // Copy modified parityArray back to host
-    cudaMemcpy(parityArray, d_ParityArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
-    cudaMemcpy(dataArray, d_DataArray, sizeof(int) * numOfArrays * 3, cudaMemcpyDeviceToHost);
-
-    // Free device memory
-    cudaFree(d_DataArray);
-    cudaFree(d_ParityArray);
-    cudaFree(d_NumArrays);
-    cudaFree(d_TBits);
     cudaFree(u_symbol);
     cudaFree(d_RBitsRE);
     cudaFree(d_RBitsIM);
     // Clean up
     delete[] TBits_host;
-    
     return 0;
 }
