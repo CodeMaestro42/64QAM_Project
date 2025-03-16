@@ -16,15 +16,6 @@ struct Symbol {
 
     // Parametrized constructor
     Symbol(float r, float i) : real(r), imag(i) {}
-/* 
-    // Optionally, add a method to convert to cufftComplex if needed
-    cufftComplex toCufftComplex() const {
-        cufftComplex c;
-        c.x = real;
-        c.y = imag;
-        return c;
-    }
-        */
 };
 
 __device__ float round_to_nearest_odd(float value) {
